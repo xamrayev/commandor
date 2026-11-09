@@ -12,6 +12,7 @@ pub use crate::fileops::{
 };
 pub use crate::opening::{FileRef, Notice, NoticeKind, OpenWithMenu, OpeningState};
 pub use crate::palette::{PaletteCommand, PaletteItem, PaletteState};
+pub use crate::settings_state::SettingsState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -65,6 +66,8 @@ pub struct AppState {
     pub opening: OpeningState,
     /// Yangi papka, rename va savat oynalari.
     pub ops: OpsState,
+    /// Sozlamalar fayli bilan bog‘liq holat (yuklash, avto-saqlash).
+    pub settings: SettingsState,
 }
 
 /// Holatdan tashqari, UI bajaradigan natija (masalan, OS dialogi).
@@ -91,6 +94,32 @@ impl PanelTabs {
             current: 0,
             next_tab_id: 1,
         }
+    }
+
+    /// Tabsiz panel (faqat `restore` uchun; darhol tab qo‘shiladi).
+    pub(crate) fn start_empty() -> Self {
+        Self {
+            tabs: Vec::new(),
+            current: 0,
+            next_tab_id: 1,
+        }
+    }
+
+    /// Oxiriga berilgan ko‘rinish sozlamalari bilan tab qo‘shadi va manzilni yuklaydi.
+    pub(crate) fn push_tab(
+        &mut self,
+        dispatch: &impl Dispatch,
+        target: DirectoryTarget,
+        options: ListOptions,
+    ) {
+        let mut tab = PanelState {
+            options,
+            tab_id: self.next_tab_id,
+            ..PanelState::default()
+        };
+        self.next_tab_id += 1;
+        tab.navigate(dispatch, target);
+        self.tabs.push(tab);
     }
 
     pub fn active(&self) -> &PanelState {
@@ -209,6 +238,9 @@ pub struct PanelState {
     pub tab_id: u64,
     /// Keyingi listingda shu nomli yozuvga kursor qo‘yiladi (yangi papka, rename).
     pub focus_name: Option<String>,
+    /// Shift bilan oraliq tanlashning tayanch nuqtasi va o‘sha paytdagi tanlov.
+    pub anchor: Option<EntryId>,
+    pub range_base: BTreeSet<EntryId>,
 }
 
 impl PanelState {
@@ -231,12 +263,14 @@ impl PanelState {
     }
 
     pub fn select_all(&mut self) {
+        self.anchor = None;
         if let Some(listing) = &self.listing {
             self.selected = listing.entries.iter().map(|entry| entry.id).collect();
         }
     }
 
     pub fn clear_selection(&mut self) {
+        self.anchor = None;
         self.selected.clear();
     }
 
@@ -255,6 +289,7 @@ impl PanelState {
     pub fn navigate(&mut self, dispatch: &impl Dispatch, target: DirectoryTarget) {
         self.cursor = None;
         self.selected.clear();
+        self.anchor = None;
         if !self.history.is_empty() && self.history_index + 1 < self.history.len() {
             self.history.truncate(self.history_index + 1);
         }
@@ -330,8 +365,79 @@ impl PanelState {
         self.move_cursor(if forward { 1 } else { -1 });
     }
 
-    /// Kursorni `delta` qator siljitadi (chegarada to‘xtaydi). Kursor bo‘lmasa birinchi qatorga qo‘yiladi.
+    /// Shift’siz harakat: oraliq tayanchi unutiladi.
     pub fn move_cursor(&mut self, delta: isize) {
+        self.anchor = None;
+        self.step_cursor(delta);
+    }
+
+    /// Shift+strelka/PageUp/PageDown: kursor siljiydi, tayanchdan kursorgacha tanlanadi.
+    pub fn extend_selection(&mut self, delta: isize) {
+        self.ensure_anchor();
+        self.step_cursor(delta);
+        self.apply_range();
+    }
+
+    /// Shift+Home/End.
+    pub fn extend_to_edge(&mut self, end: bool) {
+        self.ensure_anchor();
+        self.edge_cursor(end);
+        self.apply_range();
+    }
+
+    /// Shift+bosish: tayanchdan bosilgan qatorgacha.
+    pub fn extend_to(&mut self, id: EntryId) {
+        self.ensure_anchor();
+        if self.index_of(id).is_some() {
+            self.cursor = Some(id);
+            self.apply_range();
+        }
+    }
+
+    /// Oddiy bosish: kursor qo‘yiladi, tayanch shu qatorga ko‘chadi.
+    pub fn click(&mut self, id: EntryId) {
+        self.cursor = Some(id);
+        self.anchor = None;
+    }
+
+    fn index_of(&self, id: EntryId) -> Option<usize> {
+        self.listing
+            .as_ref()?
+            .entries
+            .iter()
+            .position(|entry| entry.id == id)
+    }
+
+    fn ensure_anchor(&mut self) {
+        if self.anchor.is_some() {
+            return;
+        }
+        if self.cursor.is_none() {
+            self.step_cursor(0);
+        }
+        self.anchor = self.cursor;
+        self.range_base = self.selected.clone();
+    }
+
+    /// Tanlov = tayanch paytidagi tanlov ∪ [tayanch..kursor].
+    fn apply_range(&mut self) {
+        let (Some(anchor), Some(cursor)) = (self.anchor, self.cursor) else {
+            return;
+        };
+        let (Some(a), Some(b)) = (self.index_of(anchor), self.index_of(cursor)) else {
+            return;
+        };
+        let Some(listing) = &self.listing else {
+            return;
+        };
+        let (from, to) = (a.min(b), a.max(b));
+        self.selected = self.range_base.clone();
+        self.selected
+            .extend(listing.entries[from..=to].iter().map(|entry| entry.id));
+    }
+
+    /// Kursorni `delta` qator siljitadi (chegarada to‘xtaydi). Kursor bo‘lmasa birinchi qatorga qo‘yiladi.
+    fn step_cursor(&mut self, delta: isize) {
         let Some(listing) = &self.listing else {
             return;
         };
@@ -350,6 +456,11 @@ impl PanelState {
 
     /// Home/End: birinchi yoki oxirgi qator.
     pub fn cursor_to_edge(&mut self, end: bool) {
+        self.anchor = None;
+        self.edge_cursor(end);
+    }
+
+    fn edge_cursor(&mut self, end: bool) {
         let Some(listing) = &self.listing else {
             return;
         };
@@ -365,6 +476,7 @@ impl PanelState {
     }
 
     pub fn toggle_selected(&mut self, id: EntryId) {
+        self.anchor = None;
         if !self.selected.remove(&id) {
             self.selected.insert(id);
         }
@@ -469,8 +581,10 @@ impl AppState {
             palette: None,
             opening: OpeningState::default(),
             ops: OpsState::default(),
+            settings: SettingsState::default(),
         };
         state.request_volumes(dispatch);
+        state.request_settings(dispatch);
         state
     }
 
@@ -702,6 +816,9 @@ impl AppState {
             return;
         };
         let Some(reply) = self.apply_ops(request, reply) else {
+            return;
+        };
+        let Some(reply) = self.apply_settings(request, reply) else {
             return;
         };
         // Fondagi tablar ham o‘z javobini oladi; yopilgan tab javobi hech kimga tegmaydi.
@@ -1429,5 +1546,69 @@ mod tests {
         assert_eq!(panel.cursor, Some(EntryId::from_raw(49)));
         panel.cursor_to_edge(false);
         assert_eq!(panel.cursor, Some(EntryId::from_raw(0)));
+    }
+
+    fn ten() -> PanelState {
+        let mut panel = PanelState::default();
+        let mut list = listing(1, "/r");
+        list.entries = (0..10)
+            .map(|i| test_entry(i, &format!("f{i}"), EntryKind::File))
+            .collect();
+        panel.listing = Some(list);
+        panel
+    }
+
+    fn picked(panel: &PanelState) -> Vec<u64> {
+        panel.selected.iter().map(|id| id.raw()).collect()
+    }
+
+    #[test]
+    fn shift_moves_select_from_anchor_and_shrink_back() {
+        let mut panel = ten();
+        panel.click(EntryId::from_raw(2));
+        panel.extend_selection(1);
+        panel.extend_selection(1);
+        assert_eq!(picked(&panel), [2, 3, 4]);
+        assert_eq!(panel.cursor, Some(EntryId::from_raw(4)));
+        panel.extend_selection(-1);
+        assert_eq!(picked(&panel), [2, 3], "orqaga qaytsa oraliq qisqaradi");
+        panel.extend_selection(-3);
+        assert_eq!(picked(&panel), [0, 1, 2], "tayanchdan yuqoriga ham");
+        panel.extend_to_edge(true);
+        assert_eq!(picked(&panel).len(), 8, "tayanch (2) dan oxirigacha");
+        assert!(panel.reveal_cursor);
+    }
+
+    #[test]
+    fn range_keeps_earlier_selection_and_plain_move_resets_anchor() {
+        let mut panel = ten();
+        panel.toggle_selected(EntryId::from_raw(8));
+        panel.click(EntryId::from_raw(1));
+        panel.extend_to(EntryId::from_raw(3));
+        assert_eq!(picked(&panel), [1, 2, 3, 8], "avvalgi tanlov saqlanadi");
+        panel.extend_to(EntryId::from_raw(0));
+        assert_eq!(picked(&panel), [0, 1, 8], "tayanch o‘zgarmaydi");
+
+        panel.move_cursor(5);
+        assert_eq!(panel.anchor, None);
+        panel.extend_selection(1);
+        assert_eq!(
+            picked(&panel),
+            [0, 1, 5, 6, 8],
+            "yangi tayanch kursordan; eski tanlov ham qoladi"
+        );
+        panel.clear_selection();
+        assert!(panel.selected.is_empty() && panel.anchor.is_none());
+    }
+
+    #[test]
+    fn extending_without_cursor_starts_at_first_row() {
+        let mut panel = ten();
+        panel.extend_selection(2);
+        assert_eq!(picked(&panel), [0, 1, 2]);
+        let mut empty = PanelState::default();
+        empty.extend_selection(1);
+        empty.extend_to(EntryId::from_raw(3));
+        assert!(empty.selected.is_empty(), "listing yo‘q — hech narsa");
     }
 }

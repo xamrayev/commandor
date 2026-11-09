@@ -68,6 +68,8 @@ pub enum NoticeKind {
     Operation { failed: usize, total: usize },
     /// Fon vazifasi bekor qilindi: `done` ta bajarildi, qolgani tegilmadi.
     Cancelled { done: usize },
+    /// Sozlamalar faylini o‘qish yoki saqlash muammosi.
+    Settings,
 }
 
 /// Foydalanuvchiga ko‘rsatiladigan xabar (masalan, ochilmadi).

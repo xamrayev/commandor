@@ -120,7 +120,7 @@ fkey-volumes-right = F2 Тома B
 bookmarks-empty = Закладок нет. Сохраните текущую папку кнопкой ниже.
 bookmark-remove = Удалить закладку
 bookmark-already = Текущая папка сохранена
-bookmarks-session-note = Пока закладки хранятся только в этом сеансе.
+bookmarks-session-note = Закладки сохраняются в файле настроек и восстанавливаются при следующем запуске.
 palette-hint-run = выполнить
 
 # P3-09 — открытие в системной программе и «Открыть с помощью»
@@ -197,3 +197,8 @@ error-reason-reserved = Это имя зарезервировано систе�
 error-reason-unchanged = Новое имя совпадает со старым.
 error-reason-same-directory = Объект уже находится в этой папке.
 error-reason-into-itself = Папку нельзя скопировать или переместить в саму себя.
+
+# P3-07a — настройки и сеанс
+notice-settings = Настройки: { $error }
+error-reason-settings-invalid = файл настроек не прочитан, используются значения по умолчанию. Исходный файл сохранён как settings.toml.broken.
+error-reason-settings-too-large = файл настроек слишком большой (более 1 МиБ), используются значения по умолчанию.

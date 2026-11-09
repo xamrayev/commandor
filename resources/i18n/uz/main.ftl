@@ -120,7 +120,7 @@ fkey-volumes-right = F2 B tomlari
 bookmarks-empty = Xatcho‘p yo‘q. Joriy papkani quyidagi tugma bilan saqlang.
 bookmark-remove = Xatcho‘pni o‘chirish
 bookmark-already = Joriy papka saqlangan
-bookmarks-session-note = Hozircha xatcho‘plar faqat shu sessiyada saqlanadi.
+bookmarks-session-note = Xatcho‘plar sozlamalar faylida saqlanadi va keyingi ishga tushishda tiklanadi.
 palette-hint-run = bajarish
 
 # P3-09 — tizim dasturida ochish va "Open with"
@@ -197,3 +197,8 @@ error-reason-reserved = Bu nom tizim uchun band (CON, NUL, COM1 …).
 error-reason-unchanged = Yangi nom eskisi bilan bir xil.
 error-reason-same-directory = Yozuv allaqachon shu papkada.
 error-reason-into-itself = Papkani o‘zining ichiga nusxalab yoki ko‘chirib bo‘lmaydi.
+
+# P3-07a — sozlamalar va sessiya
+notice-settings = Sozlamalar: { $error }
+error-reason-settings-invalid = sozlamalar fayli o‘qilmadi, sukut qiymatlar ishlatildi. Asl fayl settings.toml.broken nomi bilan saqlandi.
+error-reason-settings-too-large = sozlamalar fayli juda katta (1 MiB dan ortiq), sukut qiymatlar ishlatildi.

@@ -30,6 +30,8 @@ pub enum Command {
     ExecutePlan { plan: PlanId, hash: u64 },// bir marta; xesh, muddat (10 min), grant va inode qayta tekshiriladi
     DiscardPlan { plan: PlanId },
     CancelJob { job: JobId },               // fon vazifasi; .part fayl o‘chiriladi, qolganiga tegilmaydi
+    LoadSettings,                           // yo‘q/buzilgan fayl — sukut + problem (UX-09)
+    SaveSettings(Box<Settings>),            // atomik: .tmp → sync_all → rename
 }
 
 pub enum OpenWith { Default, App(AppId), SystemChooser }   // AppId — oxirgi ListOpenWith doirasida
@@ -41,6 +43,7 @@ pub enum Response {
     Opened(OpenOutcome), OpenWithApps(OpenWithList),
     Plan(OperationPlan), Executed(OperationReport), Discarded,   // report: done/failed/skipped/cancelled
     JobStarted(JobId), CancelRequested,     // Copy/Move ExecutePlan javobi
+    Settings(Box<SettingsLoad>), SettingsSaved,
 }
 
 pub type Reply = Result<Response, AppError>;

@@ -350,3 +350,23 @@ fn cross_device_move_copies_verifies_and_removes_source() {
         vec![7_u8; 4096]
     );
 }
+
+/// Fayl reja va bajarish orasida o‘z joyida o‘zgartirilsa (inode o‘sha, hajm boshqa) ham eskirgan.
+/// Bu inode qayta ishlatilishiga (ext4) bog‘liq bo‘lmagan barqaror tekshiruv.
+#[test]
+fn source_modified_in_place_is_stale() {
+    let mut f = fixture();
+    let plan = plan(
+        &mut f,
+        PlanAction::Move,
+        &["hisobot.txt"],
+        ConflictPolicy::Ask,
+    )
+    .expect("plan");
+    fs::write(f.src.join("hisobot.txt"), "uzunroq yangi matn").expect("rewrite");
+    let (report, _) = run(&mut f, &plan);
+    assert_eq!(report.failed.len(), 1);
+    assert_eq!(report.failed[0].error.code, ErrorCode::StaleReference);
+    assert!(f.src.join("hisobot.txt").exists(), "manba joyida qoladi");
+    assert!(!f.dst.join("hisobot.txt").exists());
+}

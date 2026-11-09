@@ -117,6 +117,7 @@ crates/
   commandor-index/             SQLite sxema/migratsiya, FTS5, scanner, reconciliation
   commandor-ai/                provider adapterlari, streaming, tool sxema, plan validatsiya
   commandor-models/            katalog, HF resolve, downloader, llama.cpp lifecycle
+  commandor-settings/          settings.toml: OS konfiguratsiya papkasi, sessiya/xatcho‘plar, atomik saqlash (P3-07)
   commandor-launch/            OS launcher: standart dastur, "Open with" (macOS Info.plist/UTI, freedesktop .desktop, Windows OpenAs); keyin TERM-01
   commandor-terminal/          ichki PTY sessiyalar (R2)
   commandor-ipc/               worker protokoli, process supervisor
@@ -128,7 +129,7 @@ tests/platform/                Windows/macOS/Linux acceptance
 docs/                          talab, ADR, hisobotlar
 ```
 
-Bog‘liqlik yo‘nalishi: `ui → broker → (fs, launch, docs, index, ai, models, terminal, ipc) → core`. To‘g‘ridan-to‘g‘ri bog‘liqliklar `cargo xtask check-boundaries` bilan tekshiriladi; UI crate’dagi fs/process/net chaqiruvlari [clippy.toml](../crates/commandor-ui/clippy.toml) va `#![forbid]` bilan rad etiladi. Servis crate’lari `ui` yoki `eframe`ga bog‘lanmaydi, shuning uchun ular GUIsiz test qilinadi va GUI almashtirilsa qayta ishlatiladi.
+Bog‘liqlik yo‘nalishi: `ui → broker → (fs, launch, settings, docs, index, ai, models, terminal, ipc) → core`. To‘g‘ridan-to‘g‘ri bog‘liqliklar `cargo xtask check-boundaries` bilan tekshiriladi; UI crate’dagi fs/process/net chaqiruvlari [clippy.toml](../crates/commandor-ui/clippy.toml) va `#![forbid]` bilan rad etiladi. Servis crate’lari `ui` yoki `eframe`ga bog‘lanmaydi, shuning uchun ular GUIsiz test qilinadi va GUI almashtirilsa qayta ishlatiladi.
 
 ## Ikki bosqichli hujjat ochish
 

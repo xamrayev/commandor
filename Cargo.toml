@@ -19,6 +19,7 @@ commandor-ipc = { path = "crates/commandor-ipc" }
 commandor-i18n = { path = "crates/commandor-i18n" }
 commandor-fs = { path = "crates/commandor-fs" }
 commandor-launch = { path = "crates/commandor-launch" }
+commandor-settings = { path = "crates/commandor-settings" }
 
 crossbeam-channel = "0.5.17"
 eframe = "0.35.0"
@@ -31,6 +32,8 @@ serde_json = "1.0.145"
 # Tomlar (disklar) ro‘yxati: faqat `disk` imkoniyati, unsafe bizning crate’larda emas.
 sysinfo = { version = "0.34.2", default-features = false, features = ["disk"] }
 tempfile = "3.27.0"
+# Sozlamalar fayli (UX-09).
+toml = { version = "1.2", default-features = false, features = ["parse", "display", "serde", "std"] }
 # Tizim savati (FS-05): macOS NSFileManager, Windows Recycle Bin, Linux freedesktop.
 trash = { version = "5.2", default-features = false, features = ["coinit_apartmentthreaded", "freedesktop"] }
 thiserror = "2.0.20"

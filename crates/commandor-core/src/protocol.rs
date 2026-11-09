@@ -3,7 +3,7 @@
 use crate::{
     AppError, DirectoryListing, DirectoryTarget, EntryId, JobId, JobProgress, ListOptions,
     LocationId, OpenOutcome, OpenWith, OpenWithList, OperationPlan, OperationReport, PlanId,
-    PlanRequest, RequestId, Volume,
+    PlanRequest, RequestId, Settings, SettingsLoad, Volume,
 };
 use serde::{Deserialize, Serialize};
 
@@ -53,6 +53,10 @@ pub enum Command {
     DiscardPlan { plan: PlanId },
     /// Fon vazifasini bekor qilish; yarim fayl to‘liq deb qoldirilmaydi.
     CancelJob { job: JobId },
+    /// Sozlamalar faylini o‘qish (yo‘q yoki buzilgan bo‘lsa — sukut qiymatlar).
+    LoadSettings,
+    /// Sozlamalarni atomik saqlash.
+    SaveSettings(Box<Settings>),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -78,6 +82,8 @@ pub enum Response {
     /// Reja fon vazifasi sifatida boshlandi; natija `Event::JobFinished` bilan keladi.
     JobStarted(JobId),
     CancelRequested,
+    Settings(Box<SettingsLoad>),
+    SettingsSaved,
 }
 
 pub type Reply = Result<Response, AppError>;

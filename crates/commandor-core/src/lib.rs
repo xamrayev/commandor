@@ -11,6 +11,7 @@ pub mod launch;
 pub mod ops;
 pub mod protocol;
 pub mod revision;
+pub mod settings;
 
 pub use error::{AppError, DetailValue, ErrorCode};
 pub use filesystem::{
@@ -26,3 +27,6 @@ pub use ops::{
 };
 pub use protocol::{API_VERSION, AppInfo, Command, Envelope, Event, Reply, Response};
 pub use revision::{FileIdentity, Revision};
+pub use settings::{
+    PanelSession, SETTINGS_VERSION, Session, Settings, SettingsLoad, TabSession, UiSettings,
+};

@@ -16,6 +16,8 @@ const POLL: Duration = Duration::from_millis(40);
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Wait {
     /// Exit kodini qisqa kutish: noldan farqli kod — mos dastur yo‘q.
+    /// Windows’da ishlatilmaydi (`explorer.exe` exit kodi ishonchsiz).
+    #[cfg_attr(windows, allow(dead_code))]
     ExitCode,
     /// Faqat spawn muvaffaqiyati (dasturning o‘zi yoki exit kodi ishonchsiz launcher).
     SpawnOnly,

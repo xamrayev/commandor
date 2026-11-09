@@ -120,7 +120,7 @@ fkey-volumes-right = F2 Volumes B
 bookmarks-empty = No bookmarks. Save the current folder with the button below.
 bookmark-remove = Remove bookmark
 bookmark-already = Current folder is saved
-bookmarks-session-note = Bookmarks are kept for this session only for now.
+bookmarks-session-note = Bookmarks are saved in the settings file and restored on the next start.
 palette-hint-run = run
 
 # P3-09 — open with the system default app and "Open with"
@@ -197,3 +197,8 @@ error-reason-reserved = This name is reserved by the system (CON, NUL, COM1 …)
 error-reason-unchanged = The new name is the same as the old one.
 error-reason-same-directory = The item is already in this folder.
 error-reason-into-itself = A folder cannot be copied or moved into itself.
+
+# P3-07a — settings and session
+notice-settings = Settings: { $error }
+error-reason-settings-invalid = the settings file could not be read, defaults are used. The original was kept as settings.toml.broken.
+error-reason-settings-too-large = the settings file is too large (over 1 MiB), defaults are used.

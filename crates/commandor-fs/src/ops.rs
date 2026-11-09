@@ -153,6 +153,15 @@ pub(crate) struct Source {
     pub(crate) path: PathBuf,
     identity: Option<FileIdentity>,
     is_symlink: bool,
+    /// Oddiy fayl uchun (hajm, o‘zgartirish vaqti): inode qayta ishlatilsa ham almashtirish sezilsin
+    /// (ext4 o‘chirilgan fayl inode raqamini darhol qayta beradi).
+    fingerprint: Option<(u64, Option<std::time::SystemTime>)>,
+}
+
+fn fingerprint(metadata: &fs::Metadata) -> Option<(u64, Option<std::time::SystemTime>)> {
+    metadata
+        .is_file()
+        .then(|| (metadata.len(), metadata.modified().ok()))
 }
 
 #[derive(Debug, Clone)]
@@ -210,6 +219,7 @@ fn source_of(path: PathBuf, name: &str) -> Result<(Source, PlanItem), AppError> 
         path,
         identity: identity(&metadata),
         is_symlink: metadata.is_symlink(),
+        fingerprint: fingerprint(&metadata),
     };
     Ok((source, item))
 }
@@ -217,7 +227,10 @@ fn source_of(path: PathBuf, name: &str) -> Result<(Source, PlanItem), AppError> 
 /// Manba reja tuzilgandan beri almashtirilmaganmi (o‘sha inode, o‘sha tur).
 pub(crate) fn still_same(source: &Source) -> Result<fs::Metadata, AppError> {
     let metadata = fs::symlink_metadata(&source.path).map_err(io_error)?;
-    if metadata.is_symlink() != source.is_symlink || identity(&metadata) != source.identity {
+    if metadata.is_symlink() != source.is_symlink
+        || identity(&metadata) != source.identity
+        || fingerprint(&metadata) != source.fingerprint
+    {
         return Err(ErrorCode::StaleReference.into());
     }
     Ok(metadata)

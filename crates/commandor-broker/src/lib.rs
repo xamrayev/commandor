@@ -91,13 +91,26 @@ impl BrokerThread {
 
 /// Brokerni alohida threadda ishga tushiradi.
 pub fn start(notifier: impl Notifier) -> std::io::Result<(AppHandle, EventReceiver, BrokerThread)> {
-    start_at(notifier, commandor_fs::home_directory())
+    start_with(
+        notifier,
+        commandor_fs::home_directory(),
+        commandor_settings::default_path(),
+    )
 }
 
-/// Test/smoke uchun ham ishlatiladi: boshlang‘ich papka kompozitsiya qatlamidan beriladi.
+/// Test/smoke uchun: boshlang‘ich papka beriladi, sozlamalar saqlanmaydi (foydalanuvchi fayliga tegilmaydi).
 pub fn start_at(
     notifier: impl Notifier,
     home: PathBuf,
+) -> std::io::Result<(AppHandle, EventReceiver, BrokerThread)> {
+    start_with(notifier, home, None)
+}
+
+/// `settings: None` — sozlamalar faqat xotirada (o‘qish sukut, yozish no-op).
+pub fn start_with(
+    notifier: impl Notifier,
+    home: PathBuf,
+    settings: Option<PathBuf>,
 ) -> std::io::Result<(AppHandle, EventReceiver, BrokerThread)> {
     let (cmd_tx, cmd_rx) = unbounded::<Envelope<Command>>();
     let (evt_tx, evt_rx) = unbounded::<Event>();
@@ -152,6 +165,7 @@ pub fn start_at(
         .name("commandor-files".into())
         .spawn(move || {
             let mut files = FileService::new(home);
+            let settings = commandor_settings::SettingsStore::new(settings);
             while let Ok(envelope) = file_rx.recv() {
                 let reply = match envelope.body {
                     Command::ReadDirectory { target, options } => {
@@ -201,6 +215,12 @@ pub fn start_at(
                             files.execute_plan(plan, hash).map(Response::Executed)
                         },
                     ),
+                    Command::LoadSettings => {
+                        Some(Ok(Response::Settings(Box::new(settings.load()))))
+                    }
+                    Command::SaveSettings(value) => {
+                        Some(settings.save(&value).map(|()| Response::SettingsSaved))
+                    }
                     Command::DiscardPlan { plan } => {
                         files.discard_plan(plan);
                         Some(Ok(Response::Discarded))
@@ -364,6 +384,8 @@ impl Broker {
                         | Command::CreatePlan(_)
                         | Command::ExecutePlan { .. }
                         | Command::DiscardPlan { .. }
+                        | Command::LoadSettings
+                        | Command::SaveSettings(_)
                 )
             {
                 if files.try_send(envelope).is_ok() {

@@ -12,11 +12,11 @@
 - **Har panelda tablar.** Har tabning o‘z papkasi, tarixi, tanlovi va scroll holati bor.
 - **Tomlar ro‘yxati.** Disklar yo‘l ustida chip ko‘rinishida chiqadi. F1 chap panel, F2 o‘ng panel uchun ro‘yxatni ochadi.
 - **Buyruqlar paneli.** Cmd/Ctrl+Shift+P barcha panel buyruqlari va xatcho‘plarni qidiruv bilan ko‘rsatadi.
-- **Xatcho‘plar** ★ tugmasi yoki Cmd/Ctrl+D bilan. Hozircha faqat shu sessiyada saqlanadi.
+- **Xatcho‘plar** ★ tugmasi yoki Cmd/Ctrl+D bilan. Xatcho‘plar va ochiq tablar keyingi ishga tushishda tiklanadi (`settings.toml` OS sozlamalar papkasida; buzilgan fayl ilovani yiqitmaydi).
 - **Fayllarni ochish** tizimdagi standart dasturda (Enter yoki ikki marta bosish). **Dastur bilan ochish** (Shift+Enter yoki o‘ng tugma) shu fayl turini e’lon qilgan dasturlarni ko‘rsatadi. macOS’da ro‘yxat dasturlarning `Info.plist` fayllaridan, Linux’da `.desktop` yozuvlaridan olinadi; Windows’da tizim dialogi ishlatiladi. Dastur yoki skript ochilishidan oldin tasdiq so‘raladi.
 - **Yangi papka (F7), nomini o‘zgartirish (Shift+F6) va savat (F8 / Delete).** Har amal rejadan o‘tadi: diskda biror narsa o‘zgarishidan oldin broker uni tekshiradi. Savatga tashlashdan oldin tasdiq so‘raladi. Tizim savati ishlamasa, hech narsa o‘chirilmaydi.
 - **Nusxalash (F5) va ko‘chirish (F6)** boshqa panelga fon vazifasi sifatida bajariladi: progress va bekor qilish tugmasi bor. Har fayl avval vaqtinchalik `.part` faylga yoziladi, shuning uchun to‘xtatilgan nusxa hech qachon tugagandek ko‘rinmaydi. Nom band bo‘lsa, siz tanlaysiz: o‘tkazib yuborish, ikkalasini saqlash yoki almashtirish (papkalar birlashtiriladi). Disklararo ko‘chirishda manba faqat nusxa to‘liq bo‘lib, hajmi mos kelgandan keyin o‘chiriladi.
-- Nom, hajm va sana bo‘yicha saralash; ko‘p tanlash, tanlanganlar soni va umumiy hajmi bilan.
+- Nom, hajm va sana bo‘yicha saralash; ko‘p tanlash va Shift bilan oraliq tanlash, tanlanganlar soni va umumiy hajmi bilan.
 - Tizim papka tanlash dialogi; tizimga ergashadigan dark va light mavzu.
 - Interfeys tillari: o‘zbek (asosiy), rus, ingliz (Fluent).
 

@@ -18,6 +18,7 @@ const RULES: &[(&str, &[&str])] = &[
             "commandor-core",
             "commandor-fs",
             "commandor-launch",
+            "commandor-settings",
             "crossbeam-channel",
         ],
     ),
@@ -25,6 +26,8 @@ const RULES: &[(&str, &[&str])] = &[
     ("commandor-fs", &["commandor-core", "sysinfo", "trash"]),
     // OS launcher: standart dastur / Open with; plist — macOS dasturlar katalogi.
     ("commandor-launch", &["commandor-core", "plist"]),
+    // Sozlamalar fayli (UX-09): TOML.
+    ("commandor-settings", &["commandor-core", "toml"]),
     (
         "commandor-ipc",
         &["crossbeam-channel", "serde", "serde_json", "thiserror"],

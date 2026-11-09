@@ -12,11 +12,11 @@
 - **Tabs in each panel.** Each tab has its own location, history, selection and scroll position.
 - **Volume list.** Drives are shown as chips above the path. F1 opens the list for the left panel, F2 for the right one.
 - **Command palette.** Cmd/Ctrl+Shift+P lists all panel commands and bookmarks, with search.
-- **Bookmarks** with ★ or Cmd/Ctrl+D. They are kept for the current session only.
+- **Bookmarks** with ★ or Cmd/Ctrl+D. Bookmarks and open tabs are restored on the next start (`settings.toml` in the OS config folder; a broken file never crashes the app).
 - **Open files** in the system default app (Enter or double-click). **Open with** (Shift+Enter or right-click) lists the apps that declare the file type. On macOS they come from app `Info.plist`s, on Linux from `.desktop` entries; on Windows the system dialog is used. Before a program or script is opened, a confirmation is shown.
 - **New folder (F7), rename (Shift+F6) and move to trash (F8 / Delete).** Each action goes through a plan that the broker checks before anything changes on disk. Moving to trash asks for confirmation. If the system trash is unavailable, nothing is deleted.
 - **Copy (F5) and move (F6)** to the other panel run as a background job with progress and a cancel button. Each file is first written to a temporary `.part` file, so an interrupted copy never looks complete. When a name already exists, you choose to skip, keep both, or replace (folders are merged). Moving across disks deletes the source only after the copy is complete and its size matches.
-- Sorting by name, size or date; multi-select with selected count and total size.
+- Sorting by name, size or date; multi-select and Shift range select with selected count and total size.
 - Native OS folder picker, and dark and light themes that follow the system.
 - Interface languages: Uzbek (primary), Russian, English (Fluent).
 

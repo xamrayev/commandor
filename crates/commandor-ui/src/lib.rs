@@ -10,6 +10,7 @@ mod open_with_view;
 mod opening;
 mod palette;
 mod palette_view;
+mod settings_state;
 pub mod state;
 mod tabs_view;
 mod theme;
@@ -63,6 +64,8 @@ pub struct CommandorApp {
     picker_service: Option<Arc<dyn FolderPicker>>,
     picker_rx: Option<std::sync::mpsc::Receiver<Option<String>>>,
     theme_installed: bool,
+    /// Avto-saqlash ko‘pi bilan sekundiga bir marta.
+    last_autosave: std::time::Instant,
 }
 
 /// Panel ichidagi qator balandligi (yo‘l va filtr maydonlari).
@@ -131,6 +134,7 @@ impl CommandorApp {
             picker_service: folder_picker,
             picker_rx: None,
             theme_installed: false,
+            last_autosave: std::time::Instant::now(),
         }
     }
 
@@ -501,6 +505,9 @@ impl CommandorApp {
                             "notice-open-failed",
                             &[("name", &notice.file), ("error", &error)],
                         ),
+                        NoticeKind::Settings => {
+                            self.i18n.t_args("notice-settings", &[("error", &error)])
+                        }
                         NoticeKind::Cancelled { done } => self
                             .i18n
                             .t_args("notice-op-cancelled", &[("done", &done.to_string())]),
@@ -860,6 +867,7 @@ fn panel_body(
     let mut sort_toggle: Option<SortField> = None;
     let mut toggle_entry: Option<commandor_core::EntryId> = None;
     let mut set_cursor: Option<commandor_core::EntryId> = None;
+    let mut extend_entry: Option<commandor_core::EntryId> = None;
     let mut row_action: Option<RowAction> = None;
 
     // Jadval sarlavhasi: ustun nomlari saralash tugmasi vazifasini bajaradi.
@@ -995,10 +1003,15 @@ fn panel_body(
                             );
                         }
                         if row.clicked() {
-                            if ui.input(|i| i.modifiers.command || i.modifiers.ctrl) {
-                                toggle_entry = Some(entry.id);
+                            let modifiers = ui.input(|i| i.modifiers);
+                            if modifiers.shift {
+                                extend_entry = Some(entry.id);
+                            } else {
+                                if modifiers.command || modifiers.ctrl {
+                                    toggle_entry = Some(entry.id);
+                                }
+                                set_cursor = Some(entry.id);
                             }
-                            set_cursor = Some(entry.id);
                         }
                         if row.double_clicked() {
                             set_cursor = Some(entry.id);
@@ -1059,7 +1072,10 @@ fn panel_body(
         panel.toggle_selected(id);
     }
     if let Some(id) = set_cursor {
-        panel.cursor = Some(id);
+        panel.click(id);
+    }
+    if let Some(id) = extend_entry {
+        panel.extend_to(id);
     }
     row_action
 }
@@ -1432,13 +1448,18 @@ impl eframe::App for CommandorApp {
                     (Key::PageDown, PAGE_ROWS),
                     (Key::PageUp, -PAGE_ROWS),
                 ];
+                // Shift varianti avval: `consume_key(NONE, ..)` Shift’li bosishga ham mos keladi.
                 for (key, delta) in moves {
-                    if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, key)) {
+                    if ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, key)) {
+                        panel.extend_selection(delta);
+                    } else if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, key)) {
                         panel.move_cursor(delta);
                     }
                 }
                 for (key, end) in [(Key::Home, false), (Key::End, true)] {
-                    if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, key)) {
+                    if ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, key)) {
+                        panel.extend_to_edge(end);
+                    } else if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, key)) {
                         panel.cursor_to_edge(end);
                     }
                 }
@@ -1450,7 +1471,16 @@ impl eframe::App for CommandorApp {
             }
         }
         self.state.pump(&self.handle);
+        if self.last_autosave.elapsed() >= std::time::Duration::from_secs(1) {
+            self.last_autosave = std::time::Instant::now();
+            self.state.autosave(&self.handle);
+        }
         self.smoke_tick(ctx);
+    }
+
+    /// Chiqishda oxirgi o‘zgarishlar saqlanadi (broker navbatdagi buyruqni yopilishdan oldin bajaradi).
+    fn on_exit(&mut self) {
+        self.state.flush_settings(&self.handle);
     }
 
     fn ui(&mut self, ui: &mut egui::Ui, _frame: &mut eframe::Frame) {

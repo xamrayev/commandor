@@ -375,6 +375,7 @@ impl AppState {
 
     /// Navbatdagi keyingi qadamlar: tasdiqsiz rejani bajarish va papkalarni yangilash.
     pub fn pump(&mut self, dispatch: &impl Dispatch) {
+        self.pump_settings(dispatch);
         if let Some(plan) = self.ops.auto_execute.take()
             && let Some(OpDialog::Name(dialog)) = self.ops.dialog.as_mut()
         {

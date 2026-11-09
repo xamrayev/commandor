@@ -261,3 +261,36 @@ fn copy_runs_as_a_background_job() {
     drop(handle);
     worker.join();
 }
+
+/// Sozlamalar broker orqali: `start_with` yo‘li bilan saqlanadi va qayta o‘qiladi.
+#[test]
+fn settings_roundtrip_through_the_broker() {
+    use commandor_core::Settings;
+    let fixture = tempfile::tempdir().expect("temp");
+    let path = fixture.path().join("cfg/settings.toml");
+    let (handle, events, worker) =
+        commandor_broker::start_with(|| {}, fixture.path().into(), Some(path.clone()))
+            .expect("broker");
+    let reply = |request| loop {
+        match events.recv_timeout(Duration::from_secs(5)) {
+            Some(Event::Reply { request: id, reply }) if id == request => break reply,
+            Some(_) => {}
+            None => panic!("javob kelmadi"),
+        }
+    };
+    let mut settings = Settings::default();
+    settings.bookmarks.push("/tmp/xatcho‘p".into());
+    let request = handle
+        .dispatch(Command::SaveSettings(Box::new(settings.clone())))
+        .expect("dispatch");
+    assert_eq!(reply(request), Ok(Response::SettingsSaved));
+    assert!(path.is_file());
+    let request = handle.dispatch(Command::LoadSettings).expect("dispatch");
+    let Ok(Response::Settings(loaded)) = reply(request) else {
+        panic!("settings");
+    };
+    assert_eq!(loaded.settings, settings);
+    assert_eq!(loaded.problem, None);
+    drop(handle);
+    worker.join();
+}

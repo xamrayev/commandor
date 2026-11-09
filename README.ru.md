@@ -87,4 +87,4 @@ cargo xtask check-boundaries                   # проверка направл
 
 ## Лицензия
 
-Лицензия пока не выбрана (`UNLICENSED`). Все права защищены.
+Распространяется по лицензии [Apache License 2.0](LICENSE).

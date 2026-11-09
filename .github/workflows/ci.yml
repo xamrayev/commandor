@@ -12,10 +12,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-14, macos-13, windows-2022]
+        # macos-15: arm64, macos-15-intel: x86_64 (macos-13/14 obrazlari GitHub’da endi qo‘llanmaydi).
+        os: [ubuntu-24.04, macos-15, macos-15-intel, windows-2022]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Rust toolchain
         run: |
           rustup toolchain install 1.94.1 --profile minimal --component rustfmt,clippy

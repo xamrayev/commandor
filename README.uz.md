@@ -87,4 +87,4 @@ Ish tartibi [AGENTS.md](AGENTS.md)da.
 
 ## Litsenziya
 
-Litsenziya hali tanlanmagan (`UNLICENSED`). Barcha huquqlar himoyalangan.
+[Apache License 2.0](LICENSE) litsenziyasi asosida tarqatiladi.

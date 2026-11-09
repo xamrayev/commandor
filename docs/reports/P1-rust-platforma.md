@@ -15,7 +15,7 @@
 - [commandor-ipc](../../crates/commandor-ipc/src/lib.rs): 4 bayt LE + JSON freym (≤ 16 MiB, katta uzunlik xotira ajratilishidan oldin rad etiladi), `Hello` handshake, supervisor (timeoutda kill, crashdan keyin restart, restart limiti). Diagnostika so‘rovlari (`Sleep`, `Abort`) faqat `COMMANDOR_WORKER_DIAG=1` bilan bajariladi.
 - [commandor-app](../../crates/commandor-app/src/main.rs): bitta `commandor` binary — GUI, `--smoke`, `--worker diag`; noto‘g‘ri argumentda chiqish kodi 2.
 - [commandor-i18n](../../crates/commandor-i18n/src/lib.rs) va [resources/i18n](../../resources/i18n/): uz (asosiy), ru, en; kalit topilmasa uz, keyin kalitning o‘zi qaytadi.
-- [CI](../../.github/workflows/ci.yml): Ubuntu 24.04, macOS 14 (arm64), macOS 13 (x64), Windows 2022 uchun fmt/clippy/test/xtask — **yozilgan, ishga tushirilmagan** (loyiha git repozitoriy emas, remote yo‘q).
+- [CI](../../.github/workflows/ci.yml): Ubuntu 24.04, macOS 14 (arm64), macOS 13 (x64), Windows 2022 uchun fmt/clippy/test/xtask — **yozilgan, ishga tushirilmagan** (loyiha git repozitoriy emas, remote yo‘q). *Yangilanish 2026-11-09:* CI GitHub’da ishga tushdi, macOS runnerlari `macos-15`/`macos-15-intel`ga almashtirildi, to‘rtala OS yashil — [P1-05a](P1-05a-ci-birinchi-ishga-tushirish.md).
 
 ## Tekshiruv
 
@@ -37,7 +37,7 @@ Tekshirilmagan: oynaning vizual ko‘rinishi (ekran yozishga ruxsat yo‘qligi s
 
 ## Cheklov va qolgan ish
 
-- P1-05: CI’ni real runnerlarda ishga tushirish (git repozitoriy va remote kerak), runnerlarda GUI smoke, rusqlite FTS5 va portable-pty prototiplari.
+- P1-05: ~~CI’ni real runnerlarda ishga tushirish~~ — bajarildi ([P1-05a](P1-05a-ci-birinchi-ishga-tushirish.md)); runnerlarda GUI smoke, rusqlite FTS5 va portable-pty prototiplari qolgan.
 - P1-06: `tracing` va redaction qatlami (kalit/prompt/fayl mazmuni logga tushmasligi).
 - NFR-05 maqsadi (≤ 150 MB) hozircha mos, lekin bo‘sh oyna uchun o‘lchandi; ishlaydigan funksiyalar qo‘shilgach qayta o‘lchanadi.
 - Keyingi faza: [P2](../../TODO.md#2-faza--asosiy-texnik-prototiplar-r02r04) R0 spike’lari yoki [P3-01](../../TODO.md#3-faza--ikki-panelli-fayl-menejeri-r11) haqiqiy papka listingi.

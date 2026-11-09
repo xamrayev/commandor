@@ -4,7 +4,7 @@
 
 **Rustda yozilgan kross-platform, ikki panelli fayl menejeri.**
 
-> **Holat: dastlabki ishlab chiqish (v0.1.0, 2026-yil noyabr).** Hozircha faqat ko‘rish ishlaydi. Nusxalash, ko‘chirish, nomini o‘zgartirish va o‘chirish hali yo‘q. Viewer, editor, Office, terminal, qidiruv indeksi va lokal AI ham hali qilinmagan. Ilova faqat **macOS arm64**da ishga tushirib ko‘rilgan. Windows va Linux uchun CI yozilgan, lekin hali ishga tushirilmagan.
+> **Holat: dastlabki ishlab chiqish (v0.1.0, 2026-yil noyabr).** Hozircha papkalarni ko‘rish, fayllarni boshqa dasturlarda ochish, yangi papka, nomini o‘zgartirish, savat, nusxalash va ko‘chirish ishlaydi. Viewer, editor, Office, terminal, qidiruv indeksi va lokal AI ham hali qilinmagan. Ilova faqat **macOS arm64**da ishga tushirib ko‘rilgan. Windows va Linux uchun CI yozilgan, lekin hali ishga tushirilmagan.
 
 ## Hozir nima ishlaydi
 
@@ -13,6 +13,9 @@
 - **Tomlar ro‘yxati.** Disklar yo‘l ustida chip ko‘rinishida chiqadi. F1 chap panel, F2 o‘ng panel uchun ro‘yxatni ochadi.
 - **Buyruqlar paneli.** Cmd/Ctrl+Shift+P barcha panel buyruqlari va xatcho‘plarni qidiruv bilan ko‘rsatadi.
 - **Xatcho‘plar** ★ tugmasi yoki Cmd/Ctrl+D bilan. Hozircha faqat shu sessiyada saqlanadi.
+- **Fayllarni ochish** tizimdagi standart dasturda (Enter yoki ikki marta bosish). **Dastur bilan ochish** (Shift+Enter yoki o‘ng tugma) shu fayl turini e’lon qilgan dasturlarni ko‘rsatadi. macOS’da ro‘yxat dasturlarning `Info.plist` fayllaridan, Linux’da `.desktop` yozuvlaridan olinadi; Windows’da tizim dialogi ishlatiladi. Dastur yoki skript ochilishidan oldin tasdiq so‘raladi.
+- **Yangi papka (F7), nomini o‘zgartirish (Shift+F6) va savat (F8 / Delete).** Har amal rejadan o‘tadi: diskda biror narsa o‘zgarishidan oldin broker uni tekshiradi. Savatga tashlashdan oldin tasdiq so‘raladi. Tizim savati ishlamasa, hech narsa o‘chirilmaydi.
+- **Nusxalash (F5) va ko‘chirish (F6)** boshqa panelga fon vazifasi sifatida bajariladi: progress va bekor qilish tugmasi bor. Har fayl avval vaqtinchalik `.part` faylga yoziladi, shuning uchun to‘xtatilgan nusxa hech qachon tugagandek ko‘rinmaydi. Nom band bo‘lsa, siz tanlaysiz: o‘tkazib yuborish, ikkalasini saqlash yoki almashtirish (papkalar birlashtiriladi). Disklararo ko‘chirishda manba faqat nusxa to‘liq bo‘lib, hajmi mos kelgandan keyin o‘chiriladi.
 - Nom, hajm va sana bo‘yicha saralash; ko‘p tanlash, tanlanganlar soni va umumiy hajmi bilan.
 - Tizim papka tanlash dialogi; tizimga ergashadigan dark va light mavzu.
 - Interfeys tillari: o‘zbek (asosiy), rus, ingliz (Fluent).
@@ -23,7 +26,8 @@
 |---|---|
 | Tab | Faol panelni almashtirish |
 | ↑ ↓ · PageUp PageDown · Home End | Kursorni siljitish |
-| Enter · Backspace | Papkani ochish · yuqoriga |
+| Enter · Backspace | Papka yoki faylni ochish · yuqoriga |
+| Shift+Enter | Dastur bilan ochish… |
 | Alt+← / Alt+→ | Orqaga / oldinga |
 | Space / Insert | Tanlash va pastga o‘tish |
 | Cmd/Ctrl+T · Cmd/Ctrl+W · Ctrl+Tab | Yangi tab · tabni yopish · keyingi tab |
@@ -32,6 +36,8 @@
 | Cmd/Ctrl+A · Cmd/Ctrl+Shift+A | Hammasini tanlash · tanlovni bekor qilish |
 | Cmd/Ctrl+1 / 2 / 3 | Nom / hajm / sana bo‘yicha saralash |
 | F1 / F2 | Chap / o‘ng panel tomlari |
+| F5 · F6 | Boshqa panelga nusxalash · ko‘chirish |
+| F7 · Shift+F6 · F8 / Delete | Yangi papka · nomini o‘zgartirish · savat |
 
 ## Yig‘ish va ishga tushirish
 
@@ -57,6 +63,7 @@ cargo xtask check-boundaries                   # crate bog‘liqliklari yo‘nal
   | `commandor-core` | Turlar va protokol |
   | `commandor-broker` | UI uchun fasad |
   | `commandor-fs` | Listing va tomlar |
+  | `commandor-launch` | Fayllarni tizim dasturlarida ochish |
   | `commandor-ui` | egui interfeysi |
   | `commandor-app` | Binary |
   | `commandor-ipc` | Worker protokoli |

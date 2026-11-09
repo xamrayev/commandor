@@ -19,16 +19,38 @@ pub struct Envelope<T> { pub request: RequestId, pub api_version: u32, pub body:
 pub enum Command {
     Ping,
     GetAppInfo,
-    // Keyingi bosqichlar: FsResolveLocation { .. }, FsList { .. }, FsCreatePlan { .. }, ...
+    ReadDirectory { target: DirectoryTarget, options: ListOptions },   // file thread
+    ListVolumes,                                                       // file thread
+    // Fayl listing granti orqali aniqlanadi (UI yo‘l yubormaydi); ish launcher threadida.
+    OpenEntry { location: LocationId, entry: EntryId, with: OpenWith, allow_executable: bool },
+    ListOpenWith { location: LocationId, entry: EntryId },
+    // Reja → tasdiq → bajarish (2.1-bo‘lim): CreateDirectory / Rename / Trash / Copy / Move.
+    // Copy/Move: `policy: ConflictPolicy { Ask, Skip, KeepBoth, Replace }`; Ask + konflikt — bajarilmaydi.
+    CreatePlan(PlanRequest),                // disk o‘zgarmaydi; broker nomni OS qoidasi bilan tekshiradi
+    ExecutePlan { plan: PlanId, hash: u64 },// bir marta; xesh, muddat (10 min), grant va inode qayta tekshiriladi
+    DiscardPlan { plan: PlanId },
+    CancelJob { job: JobId },               // fon vazifasi; .part fayl o‘chiriladi, qolganiga tegilmaydi
 }
 
+pub enum OpenWith { Default, App(AppId), SystemChooser }   // AppId — oxirgi ListOpenWith doirasida
+pub enum OpenOutcome { Launched, NeedsConfirmation }      // bajariladigan fayl tasdiqsiz ishga tushmaydi
+
 #[non_exhaustive]
-pub enum Response { Pong, AppInfo(AppInfo) }
+pub enum Response {
+    Pong, AppInfo(AppInfo), Directory(DirectoryListing), Volumes(Vec<Volume>),
+    Opened(OpenOutcome), OpenWithApps(OpenWithList),
+    Plan(OperationPlan), Executed(OperationReport), Discarded,   // report: done/failed/skipped/cancelled
+    JobStarted(JobId), CancelRequested,     // Copy/Move ExecutePlan javobi
+}
 
 pub type Reply = Result<Response, AppError>;
 
 #[non_exhaustive]
-pub enum Event { Reply { request: RequestId, reply: Reply } }
+pub enum Event {
+    Reply { request: RequestId, reply: Reply },
+    JobProgress(JobProgress),               // ≤ 10/s: done_items/bytes, totals, current
+    JobFinished { job: JobId, result: Result<OperationReport, AppError> },
+}
 
 pub struct AppError {
     pub code: ErrorCode,                   // #[non_exhaustive]; 8-bo‘lim
@@ -245,6 +267,9 @@ Local profile joylashuvi OS app-data konvensiyasi orqali olinadi (`directories` 
 | `CHECKSUM_MISMATCH` / `DOWNLOAD_INTERRUPTED` | Quarantine/retry/resume; installed emas |
 | `PROVIDER_UNAVAILABLE` / `RATE_LIMITED` | Timeout/backoff/cancel; foydalanuvchiga sabab |
 | `POLICY_BLOCKED` / `PLAN_EXPIRED` | Yangi reja va haqiqiy ruxsat doirasi |
+| `INVALID_NAME` | Nom maydonida xato; oyna ochiq qoladi, foydalanuvchi tuzatadi |
+| `TRASH_UNAVAILABLE` | Fayl joyida qoladi; doimiy o‘chirish avtomatik taklif qilinmaydi (FS-05) |
+| `NO_APPLICATION` | Fayl turi uchun dastur yo‘q: "Dastur bilan ochish…" taklif qilinadi |
 | `DISK_FULL` / `CANCELLED` | Recovery/partial holati, tozalash va retry |
 
 Loglar (`tracing`): requestId/jobId, davomiylik, engine/version, status, sanalgan bytes; maxfiy kalitlar, raw promptlar va to‘liq fayl matni yo‘q. Xato stacki foydalanuvchi UIga xom uzatilmaydi. Diagnostic export oldidan yo‘llar va shaxsiy ma’lumotlar redaction qilinadi. Kuzatuv default lokal; telemetry alohida opt-in.

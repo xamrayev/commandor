@@ -2,11 +2,15 @@
 
 use commandor_core::{
     AppError, AppInfo, Command, DirectoryListing, DirectoryTarget, EntryId, EntryKind, ErrorCode,
-    Event, ListOptions, Reply, RequestId, Response, SortDirection, SortField, Volume,
+    Event, ListOptions, PlanAction, Reply, RequestId, Response, SortDirection, SortField, Volume,
     volume_index_for_path,
 };
 use std::collections::BTreeSet;
 
+pub use crate::fileops::{
+    JobView, NameDialog, NameKind, OpDialog, OpsState, PlanDialog, TransferRequest,
+};
+pub use crate::opening::{FileRef, Notice, NoticeKind, OpenWithMenu, OpeningState};
 pub use crate::palette::{PaletteCommand, PaletteItem, PaletteState};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,6 +61,10 @@ pub struct AppState {
     pub bookmarks: Vec<String>,
     /// Ochiq buyruqlar paneli.
     pub palette: Option<PaletteState>,
+    /// Fayllarni tizim dasturida ochish, "Open with" va xabarlar.
+    pub opening: OpeningState,
+    /// Yangi papka, rename va savat oynalari.
+    pub ops: OpsState,
 }
 
 /// Holatdan tashqari, UI bajaradigan natija (masalan, OS dialogi).
@@ -199,6 +207,8 @@ pub struct PanelState {
     pub reveal_cursor: bool,
     /// Panel ichida barqaror tab ID (indeks tab yopilganda o‘zgaradi, bu esa yo‘q).
     pub tab_id: u64,
+    /// Keyingi listingda shu nomli yozuvga kursor qo‘yiladi (yangi papka, rename).
+    pub focus_name: Option<String>,
 }
 
 impl PanelState {
@@ -416,6 +426,12 @@ impl PanelState {
                 {
                     self.cursor = None;
                 }
+                if let Some(name) = self.focus_name.take()
+                    && let Some(entry) = listing.entries.iter().find(|entry| entry.name == name)
+                {
+                    self.cursor = Some(entry.id);
+                    self.reveal_cursor = true;
+                }
                 self.listing = Some(listing);
                 self.error = None;
             }
@@ -451,6 +467,8 @@ impl AppState {
             volume_menu: None,
             bookmarks: Vec::new(),
             palette: None,
+            opening: OpeningState::default(),
+            ops: OpsState::default(),
         };
         state.request_volumes(dispatch);
         state
@@ -575,6 +593,13 @@ impl AppState {
             PaletteCommand::TogglePanel => self.toggle_active(),
             PaletteCommand::AddBookmark => self.add_bookmark(side),
             PaletteCommand::PickFolder => return Some(UiEffect::PickFolder),
+            PaletteCommand::Open => self.open_cursor(dispatch),
+            PaletteCommand::OpenWith => self.open_with_cursor(dispatch),
+            PaletteCommand::NewFolder => self.start_new_folder(),
+            PaletteCommand::Rename => self.start_rename(),
+            PaletteCommand::Trash => self.start_trash(dispatch),
+            PaletteCommand::Copy => self.start_transfer(dispatch, PlanAction::Copy),
+            PaletteCommand::Move => self.start_transfer(dispatch, PlanAction::Move),
         }
         None
     }
@@ -666,7 +691,17 @@ impl AppState {
     /// Hodisani qo‘llaydi. Kutilmagan yoki eskirgan `RequestId` javobi holatni o‘zgartirmaydi.
     pub fn apply(&mut self, event: Event) {
         // `Event` #[non_exhaustive]: boshqa hodisalar keyingi bosqichlarda qo‘shiladi.
-        let Event::Reply { request, reply } = event else {
+        let (request, reply) = match event {
+            Event::Reply { request, reply } => (request, reply),
+            other => {
+                self.apply_job_event(other);
+                return;
+            }
+        };
+        let Some(reply) = self.apply_opening(request, reply) else {
+            return;
+        };
+        let Some(reply) = self.apply_ops(request, reply) else {
             return;
         };
         // Fondagi tablar ham o‘z javobini oladi; yopilgan tab javobi hech kimga tegmaydi.

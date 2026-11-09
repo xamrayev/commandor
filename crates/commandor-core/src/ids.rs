@@ -46,6 +46,10 @@ opaque_u64!(
     /// Ochilgan hujjat sessiyasi identifikatori.
     DocumentId
 );
+opaque_u64!(
+    /// Broker tuzgan fayl amali rejasi; faqat shu broker sessiyasida amal qiladi.
+    PlanId
+);
 
 /// Uzoq ishlar identifikatori.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

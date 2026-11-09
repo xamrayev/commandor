@@ -1,12 +1,16 @@
 //! Read-only papka servisi. UI yo‘llari disk amali uchun qayta ishlatilmaydi.
 
+mod ops;
+mod transfer;
 mod volumes;
 
+pub use ops::{NameRules, SystemTrash, Trasher, validate_name};
+pub use transfer::{Progress, TransferJob, TransferMode};
 pub use volumes::{MountRules, display_name, is_network_fs, list_volumes};
 
 use commandor_core::{
     AppError, DirectoryListing, DirectoryTarget, EntryId, EntryKind, ErrorCode, FileEntry,
-    FileIdentity, ListOptions, Location, LocationId, SortDirection, SortField,
+    FileIdentity, ListOptions, Location, LocationId, PlanId, SortDirection, SortField,
 };
 use std::collections::BTreeMap;
 use std::ffi::OsString;
@@ -28,14 +32,23 @@ pub struct FileService {
     home: PathBuf,
     next_id: u64,
     grants: BTreeMap<LocationId, Grant>,
+    plans: BTreeMap<PlanId, ops::StoredPlan>,
+    trash: Box<dyn Trasher>,
 }
 
 impl FileService {
     pub fn new(home: PathBuf) -> Self {
+        Self::with_trasher(home, Box::new(SystemTrash))
+    }
+
+    /// Testlar savat o‘rniga soxta implementatsiya beradi (foydalanuvchi savati to‘lmasin).
+    pub fn with_trasher(home: PathBuf, trash: Box<dyn Trasher>) -> Self {
         Self {
             home,
             next_id: 1,
             grants: BTreeMap::new(),
+            plans: BTreeMap::new(),
+            trash,
         }
     }
 
@@ -89,6 +102,22 @@ impl FileService {
                 Ok(path)
             }
         }
+    }
+
+    /// Listingdagi oddiy faylning mutlaq yo‘li (ochish uchun). Grant hali amal qilishi,
+    /// yozuv shu grantga tegishli bo‘lishi va oddiy fayl (papka/symlink emas) bo‘lishi shart.
+    pub fn resolve_file(&self, location: LocationId, entry: EntryId) -> Result<PathBuf, AppError> {
+        let grant = self.checked(location)?;
+        let name = grant.entries.get(&entry).ok_or(ErrorCode::StaleReference)?;
+        let path = grant.path.join(name);
+        let metadata = fs::symlink_metadata(&path).map_err(io_error)?;
+        if metadata.is_symlink() {
+            return Err(ErrorCode::PolicyBlocked.into());
+        }
+        if !metadata.is_file() {
+            return Err(ErrorCode::InvalidArgument.into());
+        }
+        Ok(path)
     }
 
     pub fn read(
@@ -231,6 +260,12 @@ fn io_error(error: std::io::Error) -> AppError {
         std::io::ErrorKind::NotADirectory | std::io::ErrorKind::InvalidInput => {
             ErrorCode::InvalidArgument
         }
+        std::io::ErrorKind::AlreadyExists | std::io::ErrorKind::DirectoryNotEmpty => {
+            ErrorCode::DestinationExists
+        }
+        std::io::ErrorKind::StorageFull | std::io::ErrorKind::QuotaExceeded => ErrorCode::DiskFull,
+        std::io::ErrorKind::ReadOnlyFilesystem => ErrorCode::PermissionDenied,
+        std::io::ErrorKind::InvalidFilename => ErrorCode::InvalidName,
         _ => ErrorCode::RootUnavailable,
     }
     .into()

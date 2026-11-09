@@ -4,7 +4,7 @@
 
 **A cross-platform, two-panel (orthodox) file manager written in Rust.**
 
-> **Status: early development (v0.1.0, November 2026).** Only browsing works so far. Copy, move, rename and delete are not implemented yet. Neither are the viewer, editor, Office support, terminal, search index or local AI. The app has only been run on **macOS arm64**. CI for Windows and Linux is written but has not been run yet.
+> **Status: early development (v0.1.0, November 2026).** Browsing, opening files in other apps, new folder, rename, trash, copy and move work so far. Neither are the viewer, editor, Office support, terminal, search index or local AI. The app has only been run on **macOS arm64**. CI for Windows and Linux is written but has not been run yet.
 
 ## What works today
 
@@ -13,6 +13,9 @@
 - **Volume list.** Drives are shown as chips above the path. F1 opens the list for the left panel, F2 for the right one.
 - **Command palette.** Cmd/Ctrl+Shift+P lists all panel commands and bookmarks, with search.
 - **Bookmarks** with ★ or Cmd/Ctrl+D. They are kept for the current session only.
+- **Open files** in the system default app (Enter or double-click). **Open with** (Shift+Enter or right-click) lists the apps that declare the file type. On macOS they come from app `Info.plist`s, on Linux from `.desktop` entries; on Windows the system dialog is used. Before a program or script is opened, a confirmation is shown.
+- **New folder (F7), rename (Shift+F6) and move to trash (F8 / Delete).** Each action goes through a plan that the broker checks before anything changes on disk. Moving to trash asks for confirmation. If the system trash is unavailable, nothing is deleted.
+- **Copy (F5) and move (F6)** to the other panel run as a background job with progress and a cancel button. Each file is first written to a temporary `.part` file, so an interrupted copy never looks complete. When a name already exists, you choose to skip, keep both, or replace (folders are merged). Moving across disks deletes the source only after the copy is complete and its size matches.
 - Sorting by name, size or date; multi-select with selected count and total size.
 - Native OS folder picker, and dark and light themes that follow the system.
 - Interface languages: Uzbek (primary), Russian, English (Fluent).
@@ -23,7 +26,8 @@
 |---|---|
 | Tab | Switch active panel |
 | ↑ ↓ · PageUp PageDown · Home End | Move the cursor |
-| Enter · Backspace | Open folder · go up |
+| Enter · Backspace | Open folder or file · go up |
+| Shift+Enter | Open with… |
 | Alt+← / Alt+→ | Back / forward |
 | Space / Insert | Select item and move down |
 | Cmd/Ctrl+T · Cmd/Ctrl+W · Ctrl+Tab | New tab · close tab · next tab |
@@ -32,6 +36,8 @@
 | Cmd/Ctrl+A · Cmd/Ctrl+Shift+A | Select all · clear selection |
 | Cmd/Ctrl+1 / 2 / 3 | Sort by name / size / date |
 | F1 / F2 | Volumes for left / right panel |
+| F5 · F6 | Copy · move to the other panel |
+| F7 · Shift+F6 · F8 / Delete | New folder · rename · move to trash |
 
 ## Build and run
 
@@ -57,6 +63,7 @@ cargo xtask check-boundaries                   # enforces crate dependency direc
   | `commandor-core` | Types and protocol |
   | `commandor-broker` | UI facade |
   | `commandor-fs` | Listing and volumes |
+  | `commandor-launch` | Opening files in system apps |
   | `commandor-ui` | egui interface |
   | `commandor-app` | Binary |
   | `commandor-ipc` | Worker protocol |

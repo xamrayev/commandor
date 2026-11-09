@@ -18,16 +18,21 @@ commandor-ui = { path = "crates/commandor-ui" }
 commandor-ipc = { path = "crates/commandor-ipc" }
 commandor-i18n = { path = "crates/commandor-i18n" }
 commandor-fs = { path = "crates/commandor-fs" }
+commandor-launch = { path = "crates/commandor-launch" }
 
 crossbeam-channel = "0.5.17"
 eframe = "0.35.0"
 rfd = "0.15"
 fluent-bundle = "0.16.0"
+# macOS dasturlari va UTI e’lonlari (Info.plist, XML/binary); sof Rust.
+plist = { version = "1.7", default-features = false }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.145"
 # Tomlar (disklar) ro‘yxati: faqat `disk` imkoniyati, unsafe bizning crate’larda emas.
 sysinfo = { version = "0.34.2", default-features = false, features = ["disk"] }
 tempfile = "3.27.0"
+# Tizim savati (FS-05): macOS NSFileManager, Windows Recycle Bin, Linux freedesktop.
+trash = { version = "5.2", default-features = false, features = ["coinit_apartmentthreaded", "freedesktop"] }
 thiserror = "2.0.20"
 unic-langid = "0.9.6"
 uuid = { version = "1.26.0", features = ["v4", "serde"] }

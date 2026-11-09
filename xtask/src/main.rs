@@ -14,10 +14,17 @@ const RULES: &[(&str, &[&str])] = &[
     ("commandor-i18n", &["fluent-bundle", "unic-langid"]),
     (
         "commandor-broker",
-        &["commandor-core", "commandor-fs", "crossbeam-channel"],
+        &[
+            "commandor-core",
+            "commandor-fs",
+            "commandor-launch",
+            "crossbeam-channel",
+        ],
     ),
     // sysinfo: tomlar ro‘yxati (ARCHITECTURE.uz.md, fayl tizimi qatlami).
-    ("commandor-fs", &["commandor-core", "sysinfo"]),
+    ("commandor-fs", &["commandor-core", "sysinfo", "trash"]),
+    // OS launcher: standart dastur / Open with; plist — macOS dasturlar katalogi.
+    ("commandor-launch", &["commandor-core", "plist"]),
     (
         "commandor-ipc",
         &["crossbeam-channel", "serde", "serde_json", "thiserror"],

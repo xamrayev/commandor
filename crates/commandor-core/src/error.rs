@@ -25,6 +25,9 @@ pub enum ErrorCode {
     ProviderUnavailable,
     RateLimited,
     PolicyBlocked,
+    NoApplication,
+    InvalidName,
+    TrashUnavailable,
     PlanExpired,
     DiskFull,
     Cancelled,
@@ -53,6 +56,9 @@ impl ErrorCode {
         Self::ProviderUnavailable,
         Self::RateLimited,
         Self::PolicyBlocked,
+        Self::NoApplication,
+        Self::InvalidName,
+        Self::TrashUnavailable,
         Self::PlanExpired,
         Self::DiskFull,
         Self::Cancelled,
@@ -82,6 +88,9 @@ impl ErrorCode {
             Self::ProviderUnavailable => "error-provider-unavailable",
             Self::RateLimited => "error-rate-limited",
             Self::PolicyBlocked => "error-policy-blocked",
+            Self::NoApplication => "error-no-application",
+            Self::InvalidName => "error-invalid-name",
+            Self::TrashUnavailable => "error-trash-unavailable",
             Self::PlanExpired => "error-plan-expired",
             Self::DiskFull => "error-disk-full",
             Self::Cancelled => "error-cancelled",
@@ -106,7 +115,7 @@ impl ErrorCode {
 }
 
 /// Xato tafsiloti: faqat oddiy qiymatlar, yo‘l/stack/maxfiy ma’lumot emas.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum DetailValue {
     Bool(bool),
@@ -114,7 +123,7 @@ pub enum DetailValue {
     Text(String),
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, thiserror::Error)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, thiserror::Error)]
 #[error("{code:?}")]
 pub struct AppError {
     pub code: ErrorCode,

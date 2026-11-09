@@ -19,10 +19,17 @@ pub enum PaletteCommand {
     DeselectAll,
     PickFolder,
     AddBookmark,
+    Open,
+    OpenWith,
+    NewFolder,
+    Rename,
+    Trash,
+    Copy,
+    Move,
 }
 
 impl PaletteCommand {
-    pub const ALL: [Self; 16] = [
+    pub const ALL: [Self; 23] = [
         Self::GoHome,
         Self::GoUp,
         Self::GoBack,
@@ -39,6 +46,13 @@ impl PaletteCommand {
         Self::DeselectAll,
         Self::PickFolder,
         Self::AddBookmark,
+        Self::Open,
+        Self::OpenWith,
+        Self::NewFolder,
+        Self::Rename,
+        Self::Trash,
+        Self::Copy,
+        Self::Move,
     ];
 
     pub const fn label_key(self) -> &'static str {
@@ -59,6 +73,13 @@ impl PaletteCommand {
             Self::DeselectAll => "cmd-deselect-all",
             Self::PickFolder => "cmd-pick-folder",
             Self::AddBookmark => "cmd-add-bookmark",
+            Self::Open => "cmd-open",
+            Self::OpenWith => "cmd-open-with",
+            Self::NewFolder => "cmd-new-folder",
+            Self::Rename => "cmd-rename",
+            Self::Trash => "cmd-trash",
+            Self::Copy => "cmd-copy",
+            Self::Move => "cmd-move",
         }
     }
 }

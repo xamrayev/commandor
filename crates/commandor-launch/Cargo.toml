@@ -1,0 +1,18 @@
+[package]
+name = "commandor-launch"
+description = "OS launcher: faylni standart dasturda ochish va \"Open with\"; tashqi dastur faqat argument massivi bilan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+commandor-core.workspace = true
+plist.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

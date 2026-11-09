@@ -325,3 +325,48 @@ fn sorting_by_name_size_and_modified() {
     assert_eq!(names[2], "small.txt");
     assert_eq!(names[3], "large.txt");
 }
+
+#[test]
+fn resolve_file_accepts_only_regular_files_of_a_live_grant() {
+    let (fixture, mut service) = fixture();
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(
+        fixture.path().join("hisobot.txt"),
+        fixture.path().join("havola"),
+    )
+    .expect("symlink");
+    let listing = service
+        .read(DirectoryTarget::Home, ListOptions::default())
+        .expect("list");
+    let id_of = |name: &str| {
+        listing
+            .entries
+            .iter()
+            .find(|entry| entry.name == name)
+            .map(|entry| entry.id)
+            .expect("entry")
+    };
+    let location = listing.location.id;
+
+    let path = service
+        .resolve_file(location, id_of("hisobot.txt"))
+        .expect("file");
+    assert!(path.is_absolute() && path.ends_with("hisobot.txt"));
+
+    let dir = service.resolve_file(location, id_of("O‘zbek papka"));
+    assert_eq!(dir.expect_err("dir").code, ErrorCode::InvalidArgument);
+    #[cfg(unix)]
+    assert_eq!(
+        service
+            .resolve_file(location, id_of("havola"))
+            .expect_err("symlink")
+            .code,
+        ErrorCode::PolicyBlocked
+    );
+    let unknown = service.resolve_file(LocationId::from_raw(9_999), id_of("hisobot.txt"));
+    assert_eq!(unknown.expect_err("grant").code, ErrorCode::StaleReference);
+
+    fs::remove_file(fixture.path().join("hisobot.txt")).expect("rm");
+    let gone = service.resolve_file(location, id_of("hisobot.txt"));
+    assert_eq!(gone.expect_err("gone").code, ErrorCode::NotFound);
+}

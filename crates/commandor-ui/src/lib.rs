@@ -4,6 +4,10 @@
 //! quyidagi `forbid` esa ularni `allow` bilan chetlab o‘tishni imkonsiz qiladi.
 #![forbid(clippy::disallowed_methods, clippy::disallowed_types)]
 
+mod fileops;
+mod fileops_view;
+mod open_with_view;
+mod opening;
 mod palette;
 mod palette_view;
 pub mod state;
@@ -13,15 +17,18 @@ mod volumes_view;
 mod widgets;
 
 use commandor_broker::{AppHandle, EventReceiver};
-use commandor_core::{DirectoryTarget, EntryKind, SortDirection, SortField};
+use commandor_core::{DirectoryTarget, EntryKind, OpenWith, SortDirection, SortField};
 use commandor_i18n::I18n;
 use eframe::egui::{
     self, Align, Align2, Color32, CornerRadius, CursorIcon, FontId, Key, KeyboardShortcut, Layout,
     Margin, Modifiers, Rect, RichText, Sense, Shadow, Stroke, pos2, vec2,
 };
+use fileops_view::{OpAction, name_window, plan_window};
+use open_with_view::{ConfirmAction, OpenWithAction, confirm_window, open_with_window};
 use palette_view::{PaletteAction, palette_window};
 use state::{
-    AppState, BrokerStatus, PAGE_ROWS, PaletteCommand, PaletteItem, PanelState, Side, UiEffect,
+    AppState, BrokerStatus, NoticeKind, OpDialog, PAGE_ROWS, PaletteCommand, PaletteItem,
+    PanelState, Side, UiEffect,
 };
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -193,6 +200,7 @@ impl CommandorApp {
         let handle = &self.handle;
         let i18n = &self.i18n;
         let mut volume_action: Option<VolumeAction> = None;
+        let mut row_action: Option<RowAction> = None;
         let mut anchor = Rect::NOTHING;
         let (stroke, shadow) = if active {
             (
@@ -242,7 +250,7 @@ impl CommandorApp {
                     ui.add_space(2.0);
                     // Har tab o‘z scroll holatiga ega bo‘lishi uchun barqaror ID.
                     ui.push_id(("tab", panel.tab_id), |ui| {
-                        panel_body(ui, &p, panel, handle, i18n, active);
+                        row_action = panel_body(ui, &p, panel, handle, i18n, active);
                     });
                 });
             });
@@ -263,6 +271,13 @@ impl CommandorApp {
         }
         if ui.input(|i| i.pointer.any_pressed()) && frame.response.contains_pointer() {
             self.state.active = side;
+        }
+        if let Some(action) = row_action {
+            self.state.active = side;
+            match action {
+                RowAction::Open => self.state.open_cursor(&self.handle),
+                RowAction::OpenWith => self.state.open_with_cursor(&self.handle),
+            }
         }
         match volume_action {
             Some(VolumeAction::Toggle) => self.state.toggle_volume_menu(&self.handle, side),
@@ -309,6 +324,74 @@ impl CommandorApp {
     fn apply_effect(&mut self, effect: Option<UiEffect>) {
         match effect {
             Some(UiEffect::PickFolder) => self.start_pick_folder(),
+            None => {}
+        }
+    }
+
+    fn ops_windows(&mut self, ctx: &egui::Context, p: &Palette) {
+        let mut action = None;
+        match self.state.ops.dialog.as_mut() {
+            Some(OpDialog::Name(dialog)) => {
+                let directory = self.state.panels[dialog.side.index()]
+                    .active()
+                    .current_path()
+                    .unwrap_or_default()
+                    .to_owned();
+                name_window(ctx, p, &self.i18n, dialog, &directory, &mut action);
+            }
+            Some(OpDialog::Confirm(dialog)) => {
+                plan_window(ctx, p, &self.i18n, dialog, &mut action);
+            }
+            None => return,
+        }
+        match action {
+            Some(OpAction::Submit) => match &self.state.ops.dialog {
+                Some(OpDialog::Name(_)) => self.state.submit_name(&self.handle),
+                Some(OpDialog::Confirm(_)) => self.state.confirm_plan(&self.handle),
+                None => {}
+            },
+            Some(OpAction::Cancel) => self.state.cancel_op(&self.handle),
+            Some(OpAction::Policy(policy)) => self.state.choose_policy(&self.handle, policy),
+            None => {}
+        }
+        if !self.state.ops.is_modal() {
+            surrender_focus(ctx);
+        }
+    }
+
+    fn opening_windows(&mut self, ctx: &egui::Context, p: &Palette) {
+        if let Some(file) = self.state.opening.confirm.clone() {
+            let mut action = None;
+            confirm_window(ctx, p, &self.i18n, &file, &mut action);
+            if let Some(action) = action {
+                self.state
+                    .answer_confirm(&self.handle, action == ConfirmAction::Run);
+            }
+            return;
+        }
+        let mut action = None;
+        if let Some(menu) = self.state.opening.menu.as_mut() {
+            open_with_window(ctx, p, &self.i18n, menu, &mut action);
+        }
+        match action {
+            Some(OpenWithAction::Choose(id)) => {
+                self.state.choose_app(&self.handle, OpenWith::App(id));
+                surrender_focus(ctx);
+            }
+            Some(OpenWithAction::SystemChooser) => {
+                self.state.choose_app(&self.handle, OpenWith::SystemChooser);
+                surrender_focus(ctx);
+            }
+            Some(OpenWithAction::Highlight(index)) => {
+                if let Some(menu) = self.state.opening.menu.as_mut() {
+                    menu.highlighted = index;
+                }
+            }
+            Some(OpenWithAction::ToggleAll) => self.state.toggle_show_all(),
+            Some(OpenWithAction::Close) => {
+                self.state.close_open_with();
+                surrender_focus(ctx);
+            }
             None => {}
         }
     }
@@ -370,7 +453,7 @@ impl CommandorApp {
     }
 
     /// Pastki panel; F1/F2 chipi bosilsa shu panel tomoni qaytadi.
-    fn bottom_bar(&self, ui: &mut egui::Ui) -> Option<Side> {
+    fn bottom_bar(&self, ui: &mut egui::Ui) -> Option<BottomAction> {
         let p = Palette::of(ui);
         let unavailable = self.i18n.t("fkey-unavailable");
         let volumes_tip = self.i18n.t("volumes-open");
@@ -382,20 +465,69 @@ impl CommandorApp {
                 ("fkey-volumes-right", Side::Right),
             ] {
                 if fkey_chip(ui, &self.i18n.t(key), true, &volumes_tip).clicked() {
-                    toggled = Some(side);
+                    toggled = Some(BottomAction::Volumes(side));
                 }
             }
-            for key in [
-                "fkey-view",
-                "fkey-edit",
-                "fkey-copy",
-                "fkey-move",
-                "fkey-mkdir",
-                "fkey-trash",
-            ] {
+            for key in ["fkey-view", "fkey-edit"] {
                 let _ = fkey_chip(ui, &self.i18n.t(key), false, &unavailable);
             }
+            for (key, tip, action) in [
+                ("fkey-copy", "cmd-copy", BottomAction::Copy),
+                ("fkey-move", "cmd-move", BottomAction::Move),
+                ("fkey-mkdir", "cmd-new-folder", BottomAction::NewFolder),
+                ("fkey-trash", "cmd-trash", BottomAction::Trash),
+            ] {
+                if fkey_chip(ui, &self.i18n.t(key), true, &self.i18n.t(tip)).clicked() {
+                    toggled = Some(action);
+                }
+            }
             ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                if let Some(job) = self.state.ops.jobs.first() {
+                    if let Some(action) =
+                        job_strip(ui, &p, &self.i18n, job, self.state.ops.jobs.len())
+                    {
+                        toggled = Some(action);
+                    }
+                    return;
+                }
+                if let Some(notice) = &self.state.opening.notice {
+                    ui.spacing_mut().item_spacing.x = 4.0;
+                    if icon_button(ui, "✖", &self.i18n.t("notice-dismiss"), true) {
+                        toggled = Some(BottomAction::DismissNotice);
+                    }
+                    let error = error_text(&self.i18n, &notice.error);
+                    let text = match notice.kind {
+                        NoticeKind::Open => self.i18n.t_args(
+                            "notice-open-failed",
+                            &[("name", &notice.file), ("error", &error)],
+                        ),
+                        NoticeKind::Cancelled { done } => self
+                            .i18n
+                            .t_args("notice-op-cancelled", &[("done", &done.to_string())]),
+                        NoticeKind::Operation { failed, total } => self.i18n.t_args(
+                            "notice-op-failed",
+                            &[
+                                ("name", &quoted(&notice.file)),
+                                ("failed", &failed.to_string()),
+                                ("total", &total.to_string()),
+                                ("error", &error),
+                            ],
+                        ),
+                    };
+                    let galley = truncated(
+                        ui,
+                        text,
+                        FontId::proportional(12.5),
+                        p.danger,
+                        ui.available_width().min(520.0),
+                    );
+                    egui::Frame::new()
+                        .fill(p.danger_soft)
+                        .corner_radius(CornerRadius::same(7))
+                        .inner_margin(Margin::symmetric(10, 4))
+                        .show(ui, |ui| ui.label(galley));
+                    return;
+                }
                 let hint = self.i18n.t("hint-tab");
                 ui.spacing_mut().item_spacing.x = 6.0;
                 // "Tab — ..." ko‘rinishidagi maslahatni klaviatura belgisi bilan ko‘rsatamiz.
@@ -409,6 +541,112 @@ impl CommandorApp {
         });
         toggled
     }
+}
+
+/// Xato matni: `reason` tafsiloti bo‘lsa aniqroq `error-reason-*` matni, aks holda kod matni.
+pub(crate) fn error_text(i18n: &I18n, error: &commandor_core::AppError) -> String {
+    if let Some(commandor_core::DetailValue::Text(reason)) = error.details.get("reason") {
+        let key = format!("error-reason-{}", reason.replace('_', "-"));
+        if i18n.has(&key) {
+            return i18n.t(&key);
+        }
+    }
+    i18n.t(error.message_key())
+}
+
+/// Pastki paneldagi fon vazifasi: progress chizig‘i, matn va bekor qilish tugmasi.
+fn job_strip(
+    ui: &mut egui::Ui,
+    p: &Palette,
+    i18n: &I18n,
+    job: &state::JobView,
+    count: usize,
+) -> Option<BottomAction> {
+    ui.spacing_mut().item_spacing.x = 8.0;
+    let mut action = None;
+    let tip = i18n.t("job-cancel");
+    if !job.cancelling && icon_button(ui, "✖", &tip, true) {
+        action = Some(BottomAction::CancelJob(job.job));
+    }
+    let key = match (job.cancelling, job.action) {
+        (true, _) => "job-cancelling",
+        (false, commandor_core::PlanAction::Move) => "job-moving",
+        _ => "job-copying",
+    };
+    let fraction = job.fraction();
+    let mut text = i18n.t_args(
+        key,
+        &[
+            ("name", &job.first),
+            (
+                "more",
+                &match job.count.saturating_sub(1) {
+                    0 => String::new(),
+                    more => format!(" (+{more})"),
+                },
+            ),
+        ],
+    );
+    if let Some(progress) = &job.progress {
+        text.push_str(" · ");
+        text.push_str(&format_bytes(progress.done_bytes));
+        if let Some(totals) = progress.totals {
+            text.push_str(" / ");
+            text.push_str(&format_bytes(totals.bytes));
+        }
+    }
+    if count > 1 {
+        text.push_str(&i18n.t_args("job-queued", &[("count", &(count - 1).to_string())]));
+    }
+    let (bar, _) = ui.allocate_exact_size(vec2(120.0, 6.0), Sense::hover());
+    ui.painter()
+        .rect_filled(bar, CornerRadius::same(3), p.raised);
+    let filled = fraction.unwrap_or(0.0);
+    if filled > 0.0 {
+        let mut fill = bar;
+        fill.set_width(bar.width() * filled);
+        ui.painter()
+            .rect_filled(fill, CornerRadius::same(3), p.accent);
+    }
+    if let Some(fraction) = fraction {
+        ui.label(
+            RichText::new(format!("{:.0}%", fraction * 100.0))
+                .size(12.5)
+                .color(p.text),
+        );
+    } else {
+        ui.add(egui::Spinner::new().size(12.0));
+    }
+    let galley = truncated(
+        ui,
+        text,
+        FontId::proportional(12.5),
+        p.text_weak,
+        ui.available_width().min(480.0),
+    );
+    ui.label(galley);
+    action
+}
+
+/// Bo‘sh bo‘lmagan nomni «» ichiga oladi (xabar matnlari uchun).
+fn quoted(name: &str) -> String {
+    if name.is_empty() {
+        String::new()
+    } else {
+        format!(" «{name}»")
+    }
+}
+
+/// Pastki paneldagi amal.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BottomAction {
+    Volumes(Side),
+    DismissNotice,
+    NewFolder,
+    Trash,
+    Copy,
+    Move,
+    CancelJob(commandor_core::JobId),
 }
 
 /// Ikki ustunli "panel" belgisidan iborat logotip.
@@ -558,7 +796,7 @@ fn panel_body(
     handle: &AppHandle,
     i18n: &I18n,
     active: bool,
-) {
+) -> Option<RowAction> {
     let footer_h = 22.0;
     if panel.pending.is_some() {
         let height = ui.available_height();
@@ -566,7 +804,7 @@ fn panel_body(
             ui.add(egui::Spinner::new().size(22.0).color(p.accent));
             ui.label(RichText::new(i18n.t("list-loading")).color(p.text_weak));
         });
-        return;
+        return None;
     }
     if let Some(error) = &panel.error {
         let message = i18n.t(error.message_key());
@@ -586,10 +824,10 @@ fn panel_body(
         if retry {
             panel.refresh(handle);
         }
-        return;
+        return None;
     }
     let Some(listing) = &panel.listing else {
-        return;
+        return None;
     };
 
     if listing.truncated {
@@ -622,7 +860,7 @@ fn panel_body(
     let mut sort_toggle: Option<SortField> = None;
     let mut toggle_entry: Option<commandor_core::EntryId> = None;
     let mut set_cursor: Option<commandor_core::EntryId> = None;
-    let mut open = false;
+    let mut row_action: Option<RowAction> = None;
 
     // Jadval sarlavhasi: ustun nomlari saralash tugmasi vazifasini bajaradi.
     let (header, _) = ui.allocate_exact_size(vec2(width, 26.0), Sense::hover());
@@ -764,8 +1002,20 @@ fn panel_body(
                         }
                         if row.double_clicked() {
                             set_cursor = Some(entry.id);
-                            open = true;
+                            row_action = Some(RowAction::Open);
                         }
+                        if row.secondary_clicked() {
+                            set_cursor = Some(entry.id);
+                        }
+                        let is_file = entry.kind != EntryKind::Directory;
+                        row.context_menu(|ui| {
+                            if ui.button(i18n.t("menu-open")).clicked() {
+                                row_action = Some(RowAction::Open);
+                            }
+                            if is_file && ui.button(i18n.t("menu-open-with")).clicked() {
+                                row_action = Some(RowAction::OpenWith);
+                            }
+                        });
                         if entry.kind == EntryKind::Symlink {
                             row.on_hover_text(i18n.t("list-symlink"));
                         }
@@ -811,9 +1061,14 @@ fn panel_body(
     if let Some(id) = set_cursor {
         panel.cursor = Some(id);
     }
-    if open {
-        panel.open_selected(handle);
-    }
+    row_action
+}
+
+/// Jadval qatoridan kelgan, `AppState` darajasida bajariladigan amal (kursor oldindan qo‘yiladi).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum RowAction {
+    Open,
+    OpenWith,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -940,6 +1195,13 @@ fn command_shortcut(command: PaletteCommand) -> Option<KeyboardShortcut> {
         PaletteCommand::DeselectAll => (cmd_shift, Key::A),
         PaletteCommand::PickFolder => (cmd, Key::O),
         PaletteCommand::AddBookmark => (cmd, Key::D),
+        PaletteCommand::Open => (Modifiers::NONE, Key::Enter),
+        PaletteCommand::OpenWith => (Modifiers::SHIFT, Key::Enter),
+        PaletteCommand::NewFolder => (Modifiers::NONE, Key::F7),
+        PaletteCommand::Rename => (Modifiers::SHIFT, Key::F6),
+        PaletteCommand::Trash => (Modifiers::NONE, Key::F8),
+        PaletteCommand::Copy => (Modifiers::NONE, Key::F5),
+        PaletteCommand::Move => (Modifiers::NONE, Key::F6),
     };
     Some(KeyboardShortcut::new(modifiers, key))
 }
@@ -969,6 +1231,57 @@ impl CommandorApp {
             if let Some(item) = items.get(highlighted).copied() {
                 let effect = self.state.run_palette_item(&self.handle, item);
                 self.apply_effect(effect);
+                surrender_focus(ctx);
+            }
+        }
+        ctx.input_mut(|i| {
+            i.consume_key(Modifiers::NONE, Key::Tab);
+            i.consume_key(Modifiers::NONE, Key::F1);
+            i.consume_key(Modifiers::NONE, Key::F2);
+        });
+    }
+
+    /// Fayl amali oynasi ochiq: Enter — tasdiq/yaratish, Esc — bekor qilish.
+    fn ops_keys(&mut self, ctx: &egui::Context) {
+        if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape)) {
+            self.state.cancel_op(&self.handle);
+        } else if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter)) {
+            match &self.state.ops.dialog {
+                Some(OpDialog::Name(_)) => self.state.submit_name(&self.handle),
+                Some(OpDialog::Confirm(_)) => self.state.confirm_plan(&self.handle),
+                None => {}
+            }
+        }
+        if !self.state.ops.is_modal() {
+            surrender_focus(ctx);
+        }
+        ctx.input_mut(|i| {
+            i.consume_key(Modifiers::NONE, Key::Tab);
+            i.consume_key(Modifiers::NONE, Key::F1);
+            i.consume_key(Modifiers::NONE, Key::F2);
+        });
+    }
+
+    /// "Open with" yoki tasdiq oynasi ochiq: navigatsiya tugmalari faqat ularga tegishli.
+    fn opening_keys(&mut self, ctx: &egui::Context) {
+        let escape = ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Escape));
+        if self.state.opening.confirm.is_some() {
+            // Enter bilan tasodifan ishga tushmasin: faqat tugma bosilganda.
+            ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter));
+            if escape {
+                self.state.answer_confirm(&self.handle, false);
+            }
+        } else if escape {
+            self.state.close_open_with();
+            surrender_focus(ctx);
+        } else {
+            for (key, forward) in [(Key::ArrowDown, true), (Key::ArrowUp, false)] {
+                if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, key)) {
+                    self.state.step_open_with(forward);
+                }
+            }
+            if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter)) {
+                self.state.confirm_open_with(&self.handle);
                 surrender_focus(ctx);
             }
         }
@@ -1010,6 +1323,7 @@ impl eframe::App for CommandorApp {
         for event in self.events.drain() {
             self.state.apply(event);
         }
+        self.state.pump(&self.handle);
         // Picker threadidan natija kelganmi?
         if let Some(rx) = &self.picker_rx
             && let Ok(result) = rx.try_recv()
@@ -1028,6 +1342,17 @@ impl eframe::App for CommandorApp {
         }
         if self.state.palette.is_some() {
             self.palette_keys(ctx);
+            self.smoke_tick(ctx);
+            return;
+        }
+        if self.state.ops.is_modal() {
+            self.ops_keys(ctx);
+            self.state.pump(&self.handle);
+            self.smoke_tick(ctx);
+            return;
+        }
+        if self.state.opening.is_modal() {
+            self.opening_keys(ctx);
             self.smoke_tick(ctx);
             return;
         }
@@ -1092,6 +1417,13 @@ impl eframe::App for CommandorApp {
                     }
                 }
             }
+            // Delete va Cmd/Ctrl+Backspace — F8 (savat) muqobillari.
+            if ctx.input_mut(|i| {
+                i.consume_key(Modifiers::NONE, Key::Delete)
+                    || i.consume_key(Modifiers::COMMAND, Key::Backspace)
+            }) {
+                self.state.start_trash(&self.handle);
+            }
             let panel = self.state.active_panel_mut();
             if panel.pending.is_none() && panel.error.is_none() {
                 let moves = [
@@ -1115,11 +1447,9 @@ impl eframe::App for CommandorApp {
                 {
                     panel.select_current_and_step();
                 }
-                if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::Enter)) {
-                    panel.open_selected(&self.handle);
-                }
             }
         }
+        self.state.pump(&self.handle);
         self.smoke_tick(ctx);
     }
 
@@ -1140,8 +1470,19 @@ impl eframe::App for CommandorApp {
                     .inner_margin(Margin::symmetric(16, 8)),
             )
             .show(ui, |ui| self.bottom_bar(ui));
-        if let Some(side) = toggled.inner {
-            self.state.toggle_volume_menu(&self.handle, side);
+        match toggled.inner {
+            Some(BottomAction::Volumes(side)) => self.state.toggle_volume_menu(&self.handle, side),
+            Some(BottomAction::DismissNotice) => self.state.dismiss_notice(),
+            Some(BottomAction::NewFolder) => self.state.start_new_folder(),
+            Some(BottomAction::Trash) => self.state.start_trash(&self.handle),
+            Some(BottomAction::Copy) => self
+                .state
+                .start_transfer(&self.handle, commandor_core::PlanAction::Copy),
+            Some(BottomAction::Move) => self
+                .state
+                .start_transfer(&self.handle, commandor_core::PlanAction::Move),
+            Some(BottomAction::CancelJob(job)) => self.state.cancel_job(&self.handle, job),
+            None => {}
         }
 
         egui::CentralPanel::default_margins()
@@ -1157,6 +1498,9 @@ impl eframe::App for CommandorApp {
                     self.file_panel(&mut cols[1], Side::Right);
                 });
             });
+
+        self.ops_windows(ui.ctx(), &p);
+        self.opening_windows(ui.ctx(), &p);
 
         if self.state.palette.is_some() {
             let items = self.palette_items();

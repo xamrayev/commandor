@@ -70,6 +70,8 @@ flowchart LR
   BR --> IDX[commandor-index]
   BR --> AI[commandor-ai]
   BR --> MOD[commandor-models]
+  BR --> LAUNCH[commandor-launch]
+  LAUNCH --> OSAPP[Tizim dasturlari: open / xdg-open / explorer]
   BR --> TERM[commandor-terminal]
   DOC --> PDF[commandor-pdf]
   DOC --> OFF[commandor-office]
@@ -96,7 +98,7 @@ Web engine yo‘q: fayl mazmuni hech qachon HTML/JS sifatida bajarilmaydi. Markd
 
 ## Workspace tuzilmasi
 
-Modul chegaralari. 2026-11-07 holati: `core`, `broker`, `ui`, `app`, `ipc`, `i18n` va `xtask` yaratilgan ([P1 hisoboti](reports/P1-rust-platforma.md)); `commandor-fs` listing/grant servisi va alohida file thread qo‘shildi ([P3-01a](reports/P3-01-rust-listing.md)). Hozir broker crossbeam + OS thread bilan ishlaydi; jadvaldagi tokio maqsadli yechim. Qolgan modullar o‘z fazasida qo‘shiladi va `xtask` `RULES` ro‘yxatiga yoziladi.
+Modul chegaralari. 2026-11-07 holati: `core`, `broker`, `ui`, `app`, `ipc`, `i18n` va `xtask` yaratilgan ([P1 hisoboti](reports/P1-rust-platforma.md)); `commandor-fs` listing/grant servisi va alohida file thread qo‘shildi ([P3-01a](reports/P3-01-rust-listing.md)). 2026-11-09: `commandor-launch` (OS launcher) va alohida launcher thread qo‘shildi ([P3-09](reports/P3-09-tizim-dasturida-ochish.md)). Hozir broker crossbeam + OS thread bilan ishlaydi; jadvaldagi tokio maqsadli yechim. Qolgan modullar o‘z fazasida qo‘shiladi va `xtask` `RULES` ro‘yxatiga yoziladi.
 
 ```text
 Cargo.toml                     workspace, umumiy lint/profil sozlamalari
@@ -115,7 +117,8 @@ crates/
   commandor-index/             SQLite sxema/migratsiya, FTS5, scanner, reconciliation
   commandor-ai/                provider adapterlari, streaming, tool sxema, plan validatsiya
   commandor-models/            katalog, HF resolve, downloader, llama.cpp lifecycle
-  commandor-terminal/          tizim terminali launcher, PTY sessiyalar
+  commandor-launch/            OS launcher: standart dastur, "Open with" (macOS Info.plist/UTI, freedesktop .desktop, Windows OpenAs); keyin TERM-01
+  commandor-terminal/          ichki PTY sessiyalar (R2)
   commandor-ipc/               worker protokoli, process supervisor
   commandor-i18n/              fluent yuklash, til tanlash
 resources/i18n/{uz,ru,en}/     .ftl matn resurslari
@@ -125,7 +128,7 @@ tests/platform/                Windows/macOS/Linux acceptance
 docs/                          talab, ADR, hisobotlar
 ```
 
-Bog‘liqlik yo‘nalishi: `ui → broker → (fs, docs, index, ai, models, terminal, ipc) → core`. To‘g‘ridan-to‘g‘ri bog‘liqliklar `cargo xtask check-boundaries` bilan tekshiriladi; UI crate’dagi fs/process/net chaqiruvlari [clippy.toml](../crates/commandor-ui/clippy.toml) va `#![forbid]` bilan rad etiladi. Servis crate’lari `ui` yoki `eframe`ga bog‘lanmaydi, shuning uchun ular GUIsiz test qilinadi va GUI almashtirilsa qayta ishlatiladi.
+Bog‘liqlik yo‘nalishi: `ui → broker → (fs, launch, docs, index, ai, models, terminal, ipc) → core`. To‘g‘ridan-to‘g‘ri bog‘liqliklar `cargo xtask check-boundaries` bilan tekshiriladi; UI crate’dagi fs/process/net chaqiruvlari [clippy.toml](../crates/commandor-ui/clippy.toml) va `#![forbid]` bilan rad etiladi. Servis crate’lari `ui` yoki `eframe`ga bog‘lanmaydi, shuning uchun ular GUIsiz test qilinadi va GUI almashtirilsa qayta ishlatiladi.
 
 ## Ikki bosqichli hujjat ochish
 

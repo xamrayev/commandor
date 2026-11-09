@@ -1,0 +1,17 @@
+[package]
+name = "commandor-ui"
+description = "egui ko‘rinishlari. Fayl tizimi, jarayon va tarmoqqa bevosita kirmaydi (clippy.toml)"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+commandor-broker.workspace = true
+commandor-core.workspace = true
+commandor-i18n.workspace = true
+eframe.workspace = true
+
+[lints]
+workspace = true

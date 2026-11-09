@@ -1,0 +1,38 @@
+# commandor-ui vakolat chegarasi (ARCHITECTURE.uz.md → Jarayonlar modeli, ADR-005).
+# UI fayl tizimi, jarayon va tarmoqqa bevosita kirmaydi; hammasi broker AppHandle orqali.
+# lib.rs da `#![forbid(clippy::disallowed_methods, clippy::disallowed_types)]` — allow bilan chetlab bo‘lmaydi.
+
+disallowed-types = [
+  { path = "std::fs::File", reason = "UI faylga kirmaydi; broker Command ishlating" },
+  { path = "std::fs::OpenOptions", reason = "UI faylga kirmaydi; broker Command ishlating" },
+  { path = "std::fs::DirBuilder", reason = "UI papka yaratmaydi; broker plan ishlating" },
+  { path = "std::process::Command", reason = "UI jarayon ishga tushirmaydi" },
+  { path = "std::net::TcpStream", reason = "UI tarmoqqa chiqmaydi" },
+  { path = "std::net::TcpListener", reason = "UI tarmoqqa chiqmaydi" },
+  { path = "std::net::UdpSocket", reason = "UI tarmoqqa chiqmaydi" },
+]
+
+disallowed-methods = [
+  { path = "std::fs::read", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::read_to_string", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::read_dir", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::read_link", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::metadata", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::symlink_metadata", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::canonicalize", reason = "UI faylga kirmaydi" },
+  { path = "std::fs::write", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::copy", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::rename", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::hard_link", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::create_dir", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::create_dir_all", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::remove_file", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::remove_dir", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::remove_dir_all", reason = "UI faylga yozmaydi" },
+  { path = "std::fs::set_permissions", reason = "UI faylga yozmaydi" },
+  { path = "std::path::Path::exists", reason = "UI fayl tizimini so‘ramaydi" },
+  { path = "std::path::Path::metadata", reason = "UI fayl tizimini so‘ramaydi" },
+  { path = "std::path::Path::read_dir", reason = "UI fayl tizimini so‘ramaydi" },
+  { path = "std::path::Path::canonicalize", reason = "UI fayl tizimini so‘ramaydi" },
+  { path = "std::env::set_current_dir", reason = "UI jarayon holatini o‘zgartirmaydi" },
+]

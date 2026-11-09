@@ -1,0 +1,21 @@
+//! Commandor domen turlari.
+//!
+//! Bu crate hech qanday IO qilmaydi: UI, broker va servislar o‘rtasidagi umumiy
+//! shartnoma ([CONTRACTS](../../docs/CONTRACTS.uz.md)) shu yerda turlar sifatida yashaydi.
+
+pub mod error;
+pub mod filesystem;
+pub mod ids;
+pub mod job;
+pub mod protocol;
+pub mod revision;
+
+pub use error::{AppError, DetailValue, ErrorCode};
+pub use filesystem::{
+    DirectoryListing, DirectoryTarget, EntryKind, FileEntry, ListOptions, Location, SortCriteria,
+    SortDirection, SortField, Volume, VolumeKind, volume_index_for_path,
+};
+pub use ids::{DocumentId, EntryId, IdempotencyKey, JobId, LocationId, RequestId};
+pub use job::{JobState, TransitionError};
+pub use protocol::{API_VERSION, AppInfo, Command, Envelope, Event, Reply, Response};
+pub use revision::{FileIdentity, Revision};

@@ -1,0 +1,18 @@
+[package]
+name = "commandor-fs"
+description = "Grant bilan cheklangan lokal katalog listingi; UIga bog‘liq emas"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+commandor-core.workspace = true
+sysinfo.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true
